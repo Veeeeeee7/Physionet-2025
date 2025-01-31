@@ -1,0 +1,6 @@
+.venv/
+.DS_Store
+code15_hdf5/
+holdout_data/
+holdout_outputs/
+training_data/
