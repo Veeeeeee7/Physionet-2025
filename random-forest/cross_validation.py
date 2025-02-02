@@ -43,7 +43,7 @@ def run(args):
         scores.append((challenge_score, auroc, auprc, accuracy, f_measure))
 
     avg_scores = np.mean(scores, axis=0)
-    output_string = f'Average Challenge Score: {avg_scores[0]:.4f}\nAverage AUROC: {avg_scores[1]:.4f}\nAverage AUPRC: {avg_scores[2]:.4f}\nAverage Accuracy: {avg_scores[3]:.4f}\nAverage F-measure: {avg_scores[4]:.4f}'
+    output_string = f'Average Challenge Score: {avg_scores[0]:.3f}\nAverage AUROC: {avg_scores[1]:.3f}\nAverage AUPRC: {avg_scores[2]:.3f}\nAverage Accuracy: {avg_scores[3]:.3f}\nAverage F-measure: {avg_scores[4]:.3f}'
     print(output_string)
     with open(os.path.join(args.output_folder, 'cross_validation_results.txt'), 'w') as f:
         f.write(output_string)
@@ -67,10 +67,27 @@ def train_model(records, data_folder):
     max_leaf_nodes = 34
     random_state = 56
 
-    model = RandomForestClassifier(
+    base_model = RandomForestClassifier(
         n_estimators=n_estimators, max_leaf_nodes=max_leaf_nodes, random_state=random_state).fit(features, labels)
 
-    return model
+    # Sample weighting (similar to focal loss as focal loss isn't avaliable for random forest in sklearn)
+    gamma = 1
+    alpha = 0.5
+
+    pred_probs = base_model.predict_proba(features)[:, 1]
+
+    pt = np.where(labels == 1, pred_probs, 1 - pred_probs)
+    focal_weights = (1 - pt) ** gamma
+    if alpha is not None:
+        class_weights = np.where(labels == 1, alpha, 1 - alpha)
+        focal_weights *= class_weights
+
+
+    final_model = RandomForestClassifier(
+        n_estimators=n_estimators, max_leaf_nodes=max_leaf_nodes, random_state=random_state
+    ).fit(features, labels, sample_weight=focal_weights)
+
+    return final_model
 
 def run_model(record, model):
     features = extract_features(record)
