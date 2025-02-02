@@ -171,6 +171,7 @@ def run(args):
             num_exam_ids = len(exam_ids)
 
             # Iterate over the exam IDs in each signal file.
+            counter = 0
             for i in range(num_exam_ids):
                 exam_id = exam_ids[i]
 
@@ -179,6 +180,11 @@ def run(args):
                     continue
                 else:
                     pass
+
+                counter += 1
+
+                if counter % 1000 == 0:
+                    print(f'Processed {counter} exam IDs')
                 
                 physical_signals = np.array(f['tracings'][i], dtype=np.float32)
 
@@ -229,3 +235,4 @@ def run(args):
 
 if __name__=='__main__':
     run(get_parser().parse_args(sys.argv[1:]))
+
