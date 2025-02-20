@@ -5,3 +5,5 @@ holdout_data/
 holdout_outputs/
 training_data/
 training/
+small_training_set/
+smallest_training_set/

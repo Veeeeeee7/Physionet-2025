@@ -27,7 +27,7 @@ def run(args):
         print(f'Found {num_records} records')
 
     # Perform KFold cross validation.
-    kf = KFold(n_splits=5, shuffle=True, random_state=0)
+    kf = KFold(n_splits=2, shuffle=True, random_state=0)
     scores = []
 
     for i, (train_index, test_index) in enumerate(kf.split(records)):
@@ -74,6 +74,7 @@ def train_model(records, data_folder):
     gamma = 1
     alpha = 0.5
 
+    
     pred_probs = base_model.predict_proba(features)[:, 1]
 
     pt = np.where(labels == 1, pred_probs, 1 - pred_probs)
@@ -94,7 +95,7 @@ def run_model(record, model):
     features = features.reshape(1, -1)
 
     binary_output = model.predict(features)[0]
-    probability_output = model.predict_proba(features)[0][1]
+    probability_output = model.predict_proba(features)[0][0]
 
     return binary_output, probability_output
 
