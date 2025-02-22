@@ -1,5 +1,5 @@
-Average Challenge Score: 0.000
-Average AUROC: 0.406
-Average AUPRC: 0.015
-Average Accuracy: 0.969
-Average F-measure: 0.000
+Average Challenge Score: 0.036
+Average AUROC: 0.509
+Average AUPRC: 0.193
+Average Accuracy: 0.815
+Average F-measure: 0.062

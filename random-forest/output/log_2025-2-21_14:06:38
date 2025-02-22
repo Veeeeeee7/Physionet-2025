@@ -1,0 +1,14 @@
+Loading signals and labels
+Loading signals 1 to 256 out of 1519
+Loading signals 257 to 512 out of 1519
+Loading signals 513 to 768 out of 1519
+Loading signals 769 to 1024 out of 1519
+Loading signals 1025 to 1280 out of 1519
+Loading signals 1281 to 1519 out of 1519
+Found 1519 records
+Running fold 1 of 5
+Training model on 759 records
+Transforming Train Signals with Mini-Rocket
+Transforming signals 1 to 256 out of 759
+Transforming signals 257 to 512 out of 759
+Transforming signals 513 to 759 out of 759
