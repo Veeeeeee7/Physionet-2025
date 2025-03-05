@@ -25,12 +25,13 @@ def get_parser():
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('-d', '--data_folder', type=str, help="Path to the data file")
     parser.add_argument('-o', '--output_folder', type=str, help="Path to the output folder")
+    parser.add_argument('-f', '--features_file', type=str, help="Path to the demographic features file")
     return parser
 
 def run():
     records = [os.path.splitext(record)[0] for record in glob.glob(os.path.join(data_folder, '*.hea'))]
-    if len(records) > 20000:
-        records = np.random.choice(records, 20000, replace=False)
+    if len(records) > 200:
+        records = np.random.choice(records, 200, replace=False)
 
     log(f'Found {len(records)} records')
 
@@ -56,7 +57,7 @@ def run():
         os.makedirs(autogluon_path, exist_ok=True)
 
         minirocket = MiniRocketMultivariate(num_kernels=num_kernels, random_state=random_state)
-        autogluon = TabularPredictor(label='chagas', eval_metric=autogluon_challenge_scorer, path=autogluon_path)
+        autogluon = TabularPredictor(label='Chagas label', eval_metric=autogluon_challenge_scorer, path=autogluon_path)
 
         train_model(train_records, minirocket, autogluon)
 
@@ -137,7 +138,7 @@ def test_model(test_records, minirocket, autogluon):
         log('Predicting with Autogluon model')
         batch_binary_outputs = autogluon.predict(batch_extracted_features).to_numpy()
         batch_probability_outputs = autogluon.predict_proba(batch_extracted_features).to_numpy()[:, 1]
-        batch_labels = batch_extracted_features['chagas'].to_numpy()
+        batch_labels = batch_extracted_features['Chagas label'].to_numpy()
 
         binary_outputs.extend(batch_binary_outputs)
         probability_outputs.extend(batch_probability_outputs)
@@ -179,27 +180,20 @@ def extract_ecg_features(signal_files, minirocket):
     return extracted_ecg_features
 
 def extract_demographic_features(header_files):
-    sex = []
-    age = []
-    chagas = []
+    demographic_features = pd.DataFrame()
     for header_file in header_files:
         header = wfdb.rdheader(header_file)
+        labels = []
+        values = []
         for comment in header.comments:
-            if comment.startswith('Sex:'):
-                sex.append(comment.split(': ')[1])
-            elif comment.startswith('Age:'):
-                age.append(comment.split(': ')[1])
-            elif comment.startswith('Chagas label:'):
-                chagas.append(1 if comment.split(': ')[1].lower() == 'true' else 0)
+            label = comment.split(": ")[0]
+            value = comment.split(": ")[1]
+            labels.append(label)
+            values.append(value)
 
-    demographic_data = {
-        'sex': sex,
-        'age': age,
-        'chagas': chagas
-    }
+        demographic_features = pd.concat([demographic_features, pd.DataFrame([values], columns=labels)], ignore_index=True)
 
-    extract_demographic_features = pd.DataFrame(demographic_data)
-    return extract_demographic_features
+    return demographic_features
 
 def reshape_signals(signals):
     reshaped_signals = np.empty((len(signals), signals[0].shape[1]), dtype=object)
@@ -243,6 +237,7 @@ random_state = 42
 batch_size = 64
 data_folder = None
 output_folder = None
+features_file = None
 model_folder = None
 memory = 10
 
@@ -253,6 +248,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     data_folder = args.data_folder
     output_folder = args.output_folder
+    features_file = args.features_file
 
     # make folders
     os.makedirs(os.path.join(output_folder, 'models'), exist_ok=True)
