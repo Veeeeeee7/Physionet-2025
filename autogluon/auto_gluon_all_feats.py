@@ -30,8 +30,8 @@ def get_parser():
 
 def run():
     records = [os.path.splitext(record)[0] for record in glob.glob(os.path.join(data_folder, '*.hea'))]
-    if len(records) > 200:
-        records = np.random.choice(records, 200, replace=False)
+    # if len(records) > 200:
+    #     records = np.random.choice(records, 200, replace=False)
 
     log(f'Found {len(records)} records')
 
@@ -57,7 +57,7 @@ def run():
         os.makedirs(autogluon_path, exist_ok=True)
 
         minirocket = MiniRocketMultivariate(num_kernels=num_kernels, random_state=random_state)
-        autogluon = TabularPredictor(label='Chagas label', eval_metric=autogluon_challenge_scorer, path=autogluon_path)
+        autogluon = TabularPredictor(problem_type='binary', label='Chagas label', eval_metric=autogluon_challenge_scorer, path=autogluon_path, verbosity=4)
 
         train_model(train_records, minirocket, autogluon)
 
@@ -122,7 +122,7 @@ def train_model(train_records, minirocket, autogluon):
         ],
     }
 
-    autogluon.fit(train_data=combined_features, fit_strategy='parallel', memory=memory, presets='high_quality' hyperparameters=hyperparameters)
+    autogluon.fit(train_data=combined_features, fit_strategy='parallel', memory_limit=memory, time_limit=time_limit, presets='high_quality', hyperparameters=hyperparameters)
 
 def test_model(test_records, minirocket, autogluon):
     binary_outputs = []
@@ -231,16 +231,14 @@ start_time = datetime.datetime.now().strftime("%Y-%-m-%d_%H:%M:%S")
 log_file_name = f'logs/log_{start_time}'
 n_splits = 3
 num_kernels = 84 * 100
-n_estimators = 12
-max_leaf_nodes = 34
 random_state = 42
-batch_size = 64
+batch_size = 512
 data_folder = None
 output_folder = None
 features_file = None
 model_folder = None
+time_limit = 600
 memory = 10
-
 
 if __name__ == "__main__":
     # parse arguments

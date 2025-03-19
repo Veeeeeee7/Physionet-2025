@@ -29,8 +29,8 @@ def get_parser():
 
 def run():
     records = [os.path.splitext(record)[0] for record in glob.glob(os.path.join(data_folder, '*.hea'))]
-    if len(records) > 20000:
-        records = np.random.choice(records, 20000, replace=False)
+    # if len(records) > 1000:
+    #     records = np.random.choice(records, 1000, replace=False)
 
     log(f'Found {len(records)} records')
 
@@ -56,7 +56,7 @@ def run():
         os.makedirs(autogluon_path, exist_ok=True)
 
         minirocket = MiniRocketMultivariate(num_kernels=num_kernels, random_state=random_state)
-        autogluon = TabularPredictor(label='chagas', eval_metric=autogluon_challenge_scorer, path=autogluon_path)
+        autogluon = TabularPredictor(problem_type='binary', label='chagas', eval_metric=autogluon_challenge_scorer, path=autogluon_path, verbosity=2)
 
         train_model(train_records, minirocket, autogluon)
 
@@ -86,42 +86,46 @@ def train_model(train_records, minirocket, autogluon):
 
     log('Training Autogluon model')
     hyperparameters = {
-        'NN_TORCH': {},
-        'GBM': [
-            {'extra_trees': True, 'ag_args': {'name_suffix': 'XT'}},
-            {},
-            {
-                "learning_rate": 0.03,
-                "num_leaves": 128,
-                "feature_fraction": 0.9,
-                "min_data_in_leaf": 3,
-                "ag_args": {
-                    "name_suffix": "Large",
-                    "priority": 0,
-                    "hyperparameter_tune_kwargs": None,
-                },
-            },
-        ],
-        'CAT': {},
-        'XGB': {},
-        # 'FASTAI': {},
-        'RF': [
-            {'criterion': 'gini', 'ag_args': {'name_suffix': 'Gini', 'problem_types': ['binary', 'multiclass']}},
-            {'criterion': 'entropy', 'ag_args': {'name_suffix': 'Entr', 'problem_types': ['binary', 'multiclass']}},
-            {'criterion': 'squared_error', 'ag_args': {'name_suffix': 'MSE', 'problem_types': ['regression']}},
-        ],
-        'XT': [
-            {'criterion': 'gini', 'ag_args': {'name_suffix': 'Gini', 'problem_types': ['binary', 'multiclass']}},
-            {'criterion': 'entropy', 'ag_args': {'name_suffix': 'Entr', 'problem_types': ['binary', 'multiclass']}},
-            {'criterion': 'squared_error', 'ag_args': {'name_suffix': 'MSE', 'problem_types': ['regression']}},
-        ],
-        'KNN': [
-            {'weights': 'uniform', 'ag_args': {'name_suffix': 'Unif'}},
-            {'weights': 'distance', 'ag_args': {'name_suffix': 'Dist'}},
-        ],
+        # 'NN_TORCH': {},
+        # 'GBM': [
+        #     {'extra_trees': True, 'ag_args': {'name_suffix': 'XT'}},
+        #     {},
+        #     {
+        #         "learning_rate": 0.03,
+        #         "num_leaves": 128,
+        #         "feature_fraction": 0.9,
+        #         "min_data_in_leaf": 3,
+        #         "ag_args": {
+        #             "name_suffix": "Large",
+        #             "priority": 0,
+        #             "hyperparameter_tune_kwargs": None,
+        #         },
+        #     },
+        # ],
+        # 'CAT': {},
+        # 'XGB': {},
+        # # 'FASTAI': {},
+        # 'RF': [
+        #     {'criterion': 'gini', 'ag_args': {'name_suffix': 'Gini', 'problem_types': ['binary', 'multiclass']}},
+        #     {'criterion': 'entropy', 'ag_args': {'name_suffix': 'Entr', 'problem_types': ['binary', 'multiclass']}},
+        #     {'criterion': 'squared_error', 'ag_args': {'name_suffix': 'MSE', 'problem_types': ['regression']}},
+        # ],
+        # 'XT': [
+        #     {'criterion': 'gini', 'ag_args': {'name_suffix': 'Gini', 'problem_types': ['binary', 'multiclass']}},
+        #     {'criterion': 'entropy', 'ag_args': {'name_suffix': 'Entr', 'problem_types': ['binary', 'multiclass']}},
+        #     {'criterion': 'squared_error', 'ag_args': {'name_suffix': 'MSE', 'problem_types': ['regression']}},
+        # ],
+        # 'KNN': [
+        #     {'weights': 'uniform', 'ag_args': {'name_suffix': 'Unif'}},
+        #     {'weights': 'distance', 'ag_args': {'name_suffix': 'Dist'}},
+        # ],
+        'FT_TRANSFORMER': {},
+        'TABPFN': {},
+        'VW': {},
+        'AG_AUTOMM': {},
     }
 
-    autogluon.fit(train_data=combined_features, fit_strategy='parallel', memory=memory, presets='high_quality' hyperparameters=hyperparameters)
+    autogluon.fit(train_data=combined_features, fit_strategy='parallel', memory_limit=memory, time_limit=time_limit, presets='high_quality', hyperparameters=hyperparameters)
 
 def test_model(test_records, minirocket, autogluon):
     binary_outputs = []
@@ -237,14 +241,13 @@ start_time = datetime.datetime.now().strftime("%Y-%-m-%d_%H:%M:%S")
 log_file_name = f'logs/log_{start_time}'
 n_splits = 3
 num_kernels = 84 * 100
-n_estimators = 12
-max_leaf_nodes = 34
 random_state = 42
-batch_size = 64
+batch_size = 512
 data_folder = None
 output_folder = None
 model_folder = None
-memory = 10
+time_limit = 600
+memory=8
 
 
 if __name__ == "__main__":
