@@ -31,17 +31,28 @@ from sktime.utils import mlflow_sktime
 # Train your models. This function is *required*. You should edit this function to add your code, but do *not* change the arguments
 # of this function. If you do not train one of the models, then you can return None for the model.
 
+def log(message, file):
+    with open(file, 'a') as f:
+        f.write(message + '\n')
+
 # Train your model.
 def train_model(data_folder, model_folder, verbose):
     # Remove existing model directories if they exist
-    if os.path.exists(os.path.join(model_folder, 'minirocket')):
-        os.system(f'rm -rf {os.path.join(model_folder, "minirocket")}')
-    if os.path.exists(os.path.join(model_folder, 'autogluon')):
-        os.system(f'rm -rf {os.path.join(model_folder, "autogluon")}')
+    # if os.path.exists(os.path.join(model_folder, 'minirocket')):
+    #     os.system(f'rm -rf {os.path.join(model_folder, "minirocket")}')
+    # if os.path.exists(os.path.join(model_folder, 'autogluon')):
+    #     os.system(f'rm -rf {os.path.join(model_folder, "autogluon")}')
+    log_file = os.path.join(model_folder, 'log.txt')
+    if os.path.exists(log_file):
+        os.remove(log_file)
+    # Create the log file
+    with open(log_file, 'w') as f:
+        f.write('')
 
     # Find the data files.
     if verbose:
         print('Finding the Challenge data...')
+        log('Finding the Challenge data...', log_file)
 
     records = find_records(data_folder)
     num_records = len(records)
@@ -52,61 +63,28 @@ def train_model(data_folder, model_folder, verbose):
     # Extract the features and labels from the data.
     if verbose:
         print('Extracting features and labels from the data...')
+        log('Extracting features and labels from the data...', log_file)
 
-    features = np.zeros((num_records, 8428), dtype=np.float64)
+    features = np.zeros((num_records, 532), dtype=np.float32)
     labels = np.zeros(num_records, dtype=bool)
 
     # Instantiate MiniRocket Transformer
-    num_kernels = 84 * 100
+    num_kernels = 84 * 6
     random_state = 42
     minirocket = MiniRocketMultivariate(num_kernels=num_kernels, random_state=random_state)
 
     # Instantiate Autogluon
     autogluon_challenge_scorer = make_scorer(name='challenge_score', score_func=compute_challenge_score, optimum=1, greater_is_better=True, needs_proba=True, needs_threshold=False)
-    autogluon = TabularPredictor(problem_type='binary', label='chagas', eval_metric=autogluon_challenge_scorer, path=os.path.join(model_folder, 'autogluon'), verbosity=2)
-    time_limit = 54000
-    memory = 64
-    hyperparameters = {
-        'NN_TORCH': {},
-        'GBM': [
-            {'extra_trees': True, 'ag_args': {'name_suffix': 'XT'}},
-            {},
-            {
-                "learning_rate": 0.03,
-                "num_leaves": 128,
-                "feature_fraction": 0.9,
-                "min_data_in_leaf": 3,
-                "ag_args": {
-                    "name_suffix": "Large",
-                    "priority": 0,
-                    "hyperparameter_tune_kwargs": None,
-                },
-            },
-        ],
-        'CAT': {},
-        'XGB': {},
-        # 'FASTAI': {},
-        'RF': [
-            {'criterion': 'gini', 'ag_args': {'name_suffix': 'Gini', 'problem_types': ['binary', 'multiclass']}},
-            {'criterion': 'entropy', 'ag_args': {'name_suffix': 'Entr', 'problem_types': ['binary', 'multiclass']}},
-            {'criterion': 'squared_error', 'ag_args': {'name_suffix': 'MSE', 'problem_types': ['regression']}},
-        ],
-        'XT': [
-            {'criterion': 'gini', 'ag_args': {'name_suffix': 'Gini', 'problem_types': ['binary', 'multiclass']}},
-            {'criterion': 'entropy', 'ag_args': {'name_suffix': 'Entr', 'problem_types': ['binary', 'multiclass']}},
-            {'criterion': 'squared_error', 'ag_args': {'name_suffix': 'MSE', 'problem_types': ['regression']}},
-        ],
-        'KNN': [
-            {'weights': 'uniform', 'ag_args': {'name_suffix': 'Unif'}},
-            {'weights': 'distance', 'ag_args': {'name_suffix': 'Dist'}},
-        ],
-    }
+    autogluon = TabularPredictor(problem_type='binary', label='chagas', eval_metric=autogluon_challenge_scorer, path=os.path.join(model_folder, 'autogluon'), verbosity=4)
+    time_limit = 86400
+    memory = 50
 
     # Iterate over the records.
     for i in range(num_records):
-        if verbose:
+        if verbose and i % 10000 == 0:
             width = len(str(num_records))
             print(f'- {i+1:>{width}}/{num_records}: {records[i]}...')
+            log(f'- {i+1:>{width}}/{num_records}: {records[i]}...', log_file)
 
         record = os.path.join(data_folder, records[i])
         features[i] = extract_features(record, minirocket)
@@ -115,19 +93,50 @@ def train_model(data_folder, model_folder, verbose):
     # Train the models.
     if verbose:
         print('Training the model on the data...')
+        log('Training the model on the data...', log_file)
     # Combine features and labels into one DataFrame
     df = pd.DataFrame(features)
     df['chagas'] = labels
-    autogluon.fit(train_data=df, fit_strategy='parallel', memory_limit=memory, time_limit=time_limit, presets='best_quality', hyperparameters=hyperparameters)
+
+    train_df = df.sample(frac=0.8, random_state=42)
+    val_df = df.drop(train_df.index)
+    val_labels = val_df['chagas'].to_numpy()
+    val_df = val_df.drop(columns=['chagas'])
+
+    autogluon.fit(train_data=train_df, fit_strategy='sequential', num_cpus=16, memory_limit=memory, time_limit=time_limit, presets='high_quality')
+
+    autogluon.leaderboard(data=train_df, extra_metrics=['f1', 'roc_auc']).to_csv("/users/vmli3/physionet-2025/autogluon_submission/leaderboard-high-cpu.csv", index=False)
+
+    # Evaluate the model on the validation set
+    val_predictions = autogluon.predict(val_df).to_numpy()
+    val_proba = autogluon.predict_proba(val_df).to_numpy()[:, 1]
+    challenge_score = compute_challenge_score(val_labels, val_proba)
+    auroc, auprc = compute_auc(val_labels, val_proba)
+    accuracy = compute_accuracy(val_labels, val_predictions)
+    f_measure = compute_f_measure(val_labels, val_predictions)
+
+    output_string = \
+        f'Challenge score: {challenge_score:.3f}\n' + \
+        f'AUROC: {auroc:.3f}\n' \
+        f'AUPRC: {auprc:.3f}\n' + \
+        f'Accuracy: {accuracy:.3f}\n' \
+        f'F-measure: {f_measure:.3f}\n'
+    
+    # Save the evaluation metrics to a file
+    scores_file = "/users/vmli3/physionet-2025/autogluon_submission/scores-high-cpu.txt"
+    with open(scores_file, 'w') as f:
+        f.write(output_string)
 
     # Save the model.
     if verbose:
         print('Saving the model...')
+        log('Saving the model...', log_file)
     mlflow_sktime.save_model(sktime_model=minirocket, path=os.path.join(model_folder, 'minirocket'))
 
     if verbose:
         print('Done.')
         print()
+        log('Done.', log_file)
 
 # Load your trained models. This function is *required*. You should edit this function to add your code, but do *not* change the
 # arguments of this function. If you do not train one of the models, then you can return None for the model.
@@ -179,9 +188,12 @@ def extract_features(record, minirocket):
     signal, fields = load_signals(record)
 
     target_length = 4096
-    total_padding = target_length - len(signal)
-    padding = total_padding // 2
-    padded_signal = np.pad(signal, ((padding, total_padding - padding), (0, 0)), 'constant', constant_values=(0, 0))
+    if len(signal) > target_length:
+        padded_signal = signal[:target_length]
+    else:
+        total_padding = target_length - len(signal)
+        padding = total_padding // 2
+        padded_signal = np.pad(signal, ((padding, total_padding - padding), (0, 0)), 'constant', constant_values=(0, 0))
 
     transformed_features = minirocket.fit_transform(padded_signal)
     ecg_features = transformed_features.to_numpy().flatten()
