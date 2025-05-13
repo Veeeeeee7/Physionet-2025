@@ -1,0 +1,5 @@
+Challenge score: 0.426
+AUROC: 0.861
+AUPRC: 0.205
+Accuracy: 0.981
+F-measure: 0.004
