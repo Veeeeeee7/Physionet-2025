@@ -1,0 +1,5 @@
+pip install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu121 
+pip install wfdb
+git clone https://github.com/timeseriesAI/tsai
+pip install -e "tsai[dev]"
+pip install fastcore==1.7.29 fastai==2.7.19
