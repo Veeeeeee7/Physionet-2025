@@ -1,0 +1,5 @@
+git clone https://github.com/Jwoo5/fairseq-signals
+cd fairseq-signals
+pip install pip==24.0
+pip install --editable ./
+pip install autogluon.tabular PyWavelets
