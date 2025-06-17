@@ -19,7 +19,8 @@ from features import *
 
 import torch
 from fairseq_signals.models import build_model_from_checkpoint
-from sklearn.ensemble import IsolationForest
+# from sklearn.ensemble import IsolationForest
+from sklearn.svm import OneClassSVM
 from sklearn.preprocessing import minmax_scale
 import pandas as pd
 import time
@@ -99,19 +100,19 @@ def train_model(data_folder, model_folder, verbose):
     val_df = val_df.drop(columns=['sample_weight'])
 
     start_time = time.time()
-    iforest = IsolationForest(random_state=42, n_estimators=100, contamination=0.05, max_samples=100)
-    iforest.fit(X=train_df.drop(columns=['sample_weight', 'chagas']).to_numpy(), y=train_df['chagas'], sample_weight=train_df['sample_weight'].to_numpy())
+    svm = OneClassSVM(kernel='rbf')
+    svm.fit(X=train_df.drop(columns=['sample_weight', 'chagas']).to_numpy(), y=train_df['chagas'], sample_weight=train_df['sample_weight'].to_numpy())
     end_time = time.time()
     elapsed_time = end_time - start_time
     if verbose:
         log(f'Model training completed in {elapsed_time:.2f} seconds.', log_file)
 
-    raw_scores = iforest.decision_function(val_df)  
+    raw_scores = svm.decision_function(val_df)  
     proba_inlier = minmax_scale(raw_scores)
     proba_outlier = 1.0 - proba_inlier
     val_proba = proba_outlier
 
-    val_predictions = iforest.predict(val_df)
+    val_predictions = svm.predict(val_df)
     val_predictions = np.where(val_predictions == 1, False, True)
     challenge_score = compute_challenge_score(val_labels, val_proba)
     auroc, auprc = compute_auc(val_labels, val_proba)
