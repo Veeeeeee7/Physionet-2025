@@ -33,22 +33,22 @@ import time
 # Train your models. This function is *required*. You should edit this function to add your code, but do *not* change the arguments
 # of this function. If you do not train one of the models, then you can return None for the model.
 
-def log(message, file):
-    with open(file, 'a') as f:
-        f.write(message + '\n')
+# def log(message, file):
+#     with open(file, 'a') as f:
+#         f.write(message + '\n')
 
 # Train your model.
 def train_model(data_folder, model_folder, verbose):
-    log_file = '/users/vmli3/physionet-2025/ecgfm/log.txt'
-    if os.path.exists(log_file):
-        os.remove(log_file)
-    # Create the log file
-    with open(log_file, 'w') as f:
-        f.write('')
+    # log_file = '/Users/victorli/Documents/GitHub/Physionet-2025/ecgfm/log.txt'
+    # if os.path.exists(log_file):
+    #     os.remove(log_file)
+    # # Create the log file
+    # with open(log_file, 'w') as f:
+    #     f.write('')
 
-    # Find the data files.
-    if verbose:
-        log('Finding the Challenge data...', log_file)
+    # # Find the data files.
+    # if verbose:
+    #     log('Finding the Challenge data...', log_file)
 
     records = find_records(data_folder)
     num_records = len(records)
@@ -57,47 +57,42 @@ def train_model(data_folder, model_folder, verbose):
         raise FileNotFoundError('No data were provided.')
 
     # Extract the features and labels from the data.
-    if verbose:
-        log('Extracting features and labels from the data...', log_file)
+    # if verbose:
+    #     log('Extracting features and labels from the data...', log_file)
 
     features = np.zeros((num_records, 3293), dtype=np.float32)
     labels = np.zeros(num_records, dtype=bool)
 
-    # Instantiate MiniRocket Transformer
-    # random_state = 42
-    # num_kernels = 84 * 6
-    # minirocket = MiniRocketMultivariate(num_kernels=num_kernels, random_state=random_state)
-
     # Instantiate Foundation Model
     model_pretrained = build_model_from_checkpoint(
         checkpoint_path='ckpts/mimic_iv_ecg_physionet_pretrained.pt'
-    ).to('cuda')
+    ).to('cpu')
     model_pretrained.eval()
 
 
     # Instantiate Autogluon
     autogluon_challenge_scorer = make_scorer(name='challenge_score', score_func=compute_challenge_score, optimum=1, greater_is_better=True, needs_proba=True, needs_threshold=False)
-    autogluon = TabularPredictor(problem_type='binary', sample_weight='sample_weight', label='chagas', eval_metric=autogluon_challenge_scorer, path=os.path.join(model_folder, 'autogluon'), verbosity=4)
-    time_limit = 86400
-    memory = 48
+    autogluon = TabularPredictor(problem_type='binary', sample_weight='sample_weight', label='chagas', eval_metric=autogluon_challenge_scorer, path=os.path.join(model_folder, 'autogluon'), verbosity=2)
+    time_limit = 60
+    memory = 8
 
-    start_time = time.time()
+    # start_time = time.time()
     for i in range(num_records):
-        if verbose and i % 10000 == 0:
-            width = len(str(num_records))
-            log(f'- {i+1:>{width}}/{num_records}: {records[i]}...', log_file)
+        # if verbose and i % 10000 == 0:
+        #     width = len(str(num_records))
+            # log(f'- {i+1:>{width}}/{num_records}: {records[i]}...', log_file)
 
         record = os.path.join(data_folder, records[i])
         features[i] = extract_features(record, model_pretrained)
         labels[i] = load_label(record)
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    if verbose:
-        log(f'Feature extraction and labeling completed in {elapsed_time:.2f} seconds.', log_file)
+    # end_time = time.time()
+    # elapsed_time = end_time - start_time
+    # if verbose:
+    #     log(f'Feature extraction and labeling completed in {elapsed_time:.2f} seconds.', log_file)
 
     # Train the models.
-    if verbose:
-        log('Training the model on the data...', log_file)
+    # if verbose:
+    #     log('Training the model on the data...', log_file)
     # Combine features and labels into one DataFrame
     df = pd.DataFrame(features)
     df.rename(columns={0: 'sample_weight'}, inplace=True)
@@ -108,47 +103,60 @@ def train_model(data_folder, model_folder, verbose):
     val_labels = val_df['chagas'].to_numpy()
     val_df = val_df.drop(columns=['chagas'])
 
-    start_time = time.time()
+    # Oversampling of True samples to bring True rate ~22.1%
+    non_chagas = train_df[train_df['chagas'] == False]
+    chagas = train_df[train_df['chagas'] == True]
+
+    oversampled_chagas = pd.concat([chagas] * 10, ignore_index=True)
+
+    augmented_train_df = pd.concat([non_chagas, oversampled_chagas], ignore_index=True)
+    train_df = augmented_train_df.sample(frac=1.0, random_state=42).reset_index(drop=True)
+
+    # start_time = time.time()
     autogluon.fit(
         train_data=train_df, 
         fit_strategy='sequential', 
-        num_cpus=16, 
+        num_cpus=4, 
         num_gpus=0, 
         memory_limit=memory, 
         save_bag_folds=True, 
-        ag_args_fit={'max_memory_usage_ratio': 0.5},
+        ag_args_fit={'max_memory_usage_ratio': 0.75},
         ag_args_ensemble={'fold_fitting_strategy': 'sequential_local'},
         time_limit=time_limit, 
         presets='good_quality')
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    if verbose:
-        log(f'Model training completed in {elapsed_time:.2f} seconds.', log_file)
+    # end_time = time.time()
+    # elapsed_time = end_time - start_time
+    # if verbose:
+    #     log(f'Model training completed in {elapsed_time:.2f} seconds.', log_file)
 
-    autogluon.leaderboard(data=train_df, extra_metrics=['f1', 'roc_auc']).to_csv("/users/vmli3/physionet-2025/ecgfm/leaderboard.csv", index=False)
+    # autogluon.leaderboard(data=train_df, extra_metrics=['f1', 'roc_auc']).to_csv("/Users/victorli/Documents/GitHub/Physionet-2025/ecgfm/leaderboard.csv", index=False)
 
-    # Evaluate the model on the validation set
-    val_predictions = autogluon.predict(val_df).to_numpy()
-    val_proba = autogluon.predict_proba(val_df).to_numpy()[:, 1]
-    challenge_score = compute_challenge_score(val_labels, val_proba)
-    auroc, auprc = compute_auc(val_labels, val_proba)
-    accuracy = compute_accuracy(val_labels, val_predictions)
-    f_measure = compute_f_measure(val_labels, val_predictions)
+    # # Evaluate the model on the validation set
+    # val_predictions = autogluon.predict(val_df).to_numpy()
+    # # val_proba = autogluon.predict_proba(val_df).to_numpy()[:, 1]
+    # val_proba = autogluon.predict_proba(val_df).to_numpy()
+    # print(val_proba)
+    # val_proba = val_proba[:, 1]
+    # print(val_proba)
+    # challenge_score = compute_challenge_score(val_labels, val_proba)
+    # auroc, auprc = compute_auc(val_labels, val_proba)
+    # accuracy = compute_accuracy(val_labels, val_predictions)
+    # f_measure = compute_f_measure(val_labels, val_predictions)
 
-    output_string = \
-        f'Challenge score: {challenge_score:.3f}\n' + \
-        f'AUROC: {auroc:.3f}\n' \
-        f'AUPRC: {auprc:.3f}\n' + \
-        f'Accuracy: {accuracy:.3f}\n' \
-        f'F-measure: {f_measure:.3f}\n'
+    # output_string = \
+    #     f'Challenge score: {challenge_score:.3f}\n' + \
+    #     f'AUROC: {auroc:.3f}\n' \
+    #     f'AUPRC: {auprc:.3f}\n' + \
+    #     f'Accuracy: {accuracy:.3f}\n' \
+    #     f'F-measure: {f_measure:.3f}\n'
     
-    # Save the evaluation metrics to a file
-    scores_file = "/users/vmli3/physionet-2025/ecgfm/scores.txt"
-    with open(scores_file, 'w') as f:
-        f.write(output_string)
+    # # Save the evaluation metrics to a file
+    # scores_file = "/Users/victorli/Documents/GitHub/Physionet-2025/ecgfm/scores.txt"
+    # with open(scores_file, 'w') as f:
+    #     f.write(output_string)
 
-    if verbose:
-        log(output_string, log_file)
+    # if verbose:
+    #     log(output_string, log_file)
 
 # Load your trained models. This function is *required*. You should edit this function to add your code, but do *not* change the
 # arguments of this function. If you do not train one of the models, then you can return None for the model.
@@ -163,7 +171,8 @@ def run_model(record, model, verbose):
     autogluon = model
     foundation_model = build_model_from_checkpoint(
         checkpoint_path='ckpts/mimic_iv_ecg_physionet_pretrained.pt'
-    )
+    ).to('cpu')
+    foundation_model.eval()
 
     # Extract the features.
     features = extract_features(record, foundation_model)
@@ -254,7 +263,7 @@ def extract_features(record, foundation_model):
         padding = total_padding // 2
         padded_signal = np.pad(signal, ((padding, total_padding - padding), (0, 0)), 'constant', constant_values=(0, 0))
 
-    x = torch.from_numpy(padded_signal.T).float().to('cuda')
+    x = torch.from_numpy(padded_signal.T).float().to('cpu')
     x = x.unsqueeze(0)
     transformed_features = foundation_model(source=x)['features'].mean(dim=1).to('cpu')
     ecg_features = transformed_features.detach().numpy().flatten()
