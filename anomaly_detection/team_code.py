@@ -19,7 +19,6 @@ from features import *
 
 import torch
 from fairseq_signals.models import build_model_from_checkpoint
-# from sklearn.ensemble import IsolationForest
 from sklearn.svm import OneClassSVM
 from sklearn.preprocessing import minmax_scale
 import pandas as pd
@@ -40,7 +39,7 @@ def log(message, file):
 
 # Train your model.
 def train_model(data_folder, model_folder, verbose):
-    log_file = '/Users/victorli/Documents/GitHub/Physionet-2025/anomaly_detection/log.txt'
+    log_file = '/users/vmli3/physionet-2025/anomaly_detection/log.txt'
     if os.path.exists(log_file):
         os.remove(log_file)
     # Create the log file
@@ -67,7 +66,7 @@ def train_model(data_folder, model_folder, verbose):
     # Instantiate Foundation Model
     model_pretrained = build_model_from_checkpoint(
         checkpoint_path='ckpts/mimic_iv_ecg_physionet_pretrained.pt'
-    ).to('mps')
+    ).to('cuda')
     model_pretrained.eval()
 
 
@@ -92,6 +91,8 @@ def train_model(data_folder, model_folder, verbose):
     df = pd.DataFrame(features)
     df.rename(columns={0: 'sample_weight'}, inplace=True)
     df['chagas'] = labels
+
+    df = df.fillna(0)
 
     train_df = df.sample(frac=0.8, random_state=42)
     val_df = df.drop(train_df.index)
@@ -127,7 +128,7 @@ def train_model(data_folder, model_folder, verbose):
         f'F-measure: {f_measure:.3f}\n'
     
     # Save the evaluation metrics to a file
-    scores_file = "/Users/victorli/Documents/GitHub/Physionet-2025/anomaly_detection/scores.txt"
+    scores_file = "/users/vmli3/physionet-2025/anomaly_detection/scores.txt"
     with open(scores_file, 'w') as f:
         f.write(output_string)
 
@@ -239,7 +240,7 @@ def extract_features(record, foundation_model):
         padding = total_padding // 2
         padded_signal = np.pad(signal, ((padding, total_padding - padding), (0, 0)), 'constant', constant_values=(0, 0))
 
-    x = torch.from_numpy(padded_signal.T).float().to('mps')
+    x = torch.from_numpy(padded_signal.T).float().to('cuda')
     x = x.unsqueeze(0)
     transformed_features = foundation_model(source=x)['features'].mean(dim=1).to('cpu')
     ecg_features = transformed_features.detach().numpy().flatten()

@@ -1,0 +1,71 @@
+\begin{thebibliography}{10}
+\expandafter\ifx\csname url\endcsname\relax
+  \def\url#1{\texttt{#1}}\fi
+\expandafter\ifx\csname urlprefix\endcsname\relax\def\urlprefix{URL }\fi
+
+\bibitem{Goldberger2000}
+Goldberger AL, Amaral LA, Glass L, Hausdorff JM, Ivanov PC, Mark RG, et~al.
+\newblock {P}hysio{B}ank, {P}hysio{T}oolkit, and {P}hysio{N}et: Components of a new research resource for complex physiologic signals.
+\newblock Circulation 2000;\hspace{0pt}101(23):e215--e220.
+
+\bibitem{2025Challenge}
+Reyna MA, Koscova Z, Pavlus J, Weigle J, Saghafi S, Gomes P, et~al.
+\newblock {Detection of Chagas Disease from the ECG: The George B. Moody PhysioNet Challenge 2025}.
+\newblock Computing in Cardiology 2025;\hspace{0pt}52:1--4.
+
+\bibitem{CODE-15}
+Ribeiro A, Ribeiro M, Paixão G, Oliveira D, Gomes P, Canazart J, et~al.
+\newblock Automatic diagnosis of the 12-lead ecg using a deep neural network.
+\newblock Nature Communications 2020;\hspace{0pt}11(1):1760.
+
+\bibitem{SaMi-Trop}
+Cardoso C, Sabino E, Oliveira C, de~Oliveira L, Ferreira A, Cunha-Neto E, et~al.
+\newblock Longitudinal study of patients with chronic chagas cardiomyopathy in brazil ({S}a{M}i-{T}rop project): a cohort profile.
+\newblock BMJ Open 2016;\hspace{0pt}6(5):e0011181.
+
+\bibitem{PTB-XL}
+Wagner P, Strodthoff N, Bousseljot RD, Kreiseler D, Lunze FI, Samek W, et~al.
+\newblock {PTB-XL}, a large publicly available electrocardiography dataset.
+\newblock Scientific Data 2020;\hspace{0pt}7:154.
+
+\bibitem{REDS-II}
+Nunes MCP, Buss LF, Silva JLP, Martins LNA, Oliveira CDL, Cardoso CS, et~al.
+\newblock Incidence and predictors of progression to chagas cardiomyopathy: long-term follow-up of trypanosoma cruzi--seropositive individuals.
+\newblock Circulation 2021;\hspace{0pt}144(19):1553--1566.
+
+\bibitem{ELSA-Brasil}
+Pinto-Filho M, Brant L, Dos~Reis R, Giatti L, Duncan B, Lotufo P, et~al.
+\newblock Prognostic value of electrocardiographic abnormalities in adults from the brazilian longitudinal study of adults' health.
+\newblock Heart 2021;\hspace{0pt}107(19):1560--1566.
+
+\bibitem{Kataria2025PPGFMCA}
+Kataria S, Xiao R, Ruchti T, Clark MT, Lu J, Lee R, et~al.
+\newblock Continuous cardiac arrest prediction in icu using ppg foundation model.
+\newblock In 47th Annual International Conference of the IEEE Engineering in Medicine and Biology Society, (EMBC). 2025;\hspace{0pt} .
+
+\bibitem{hrv}
+Malik M.
+\newblock Heart rate variability: Standards of measurement, physiological interpretation, and clinical use.
+\newblock Circulation 03 1996;\hspace{0pt}93:1043--1065.
+
+\bibitem{wavelet}
+Mallat S.
+\newblock A theory for multiresolution signal decomposition: the wavelet representation.
+\newblock IEEE Transactions on Pattern Analysis and Machine Intelligence 1989;\hspace{0pt}11(7):674--693.
+
+\bibitem{fft}
+Brigham EO, Morrow RE.
+\newblock The fast fourier transform.
+\newblock IEEE Spectrum 1967;\hspace{0pt}4(12):63--70.
+
+\bibitem{minirocket}
+Dempster A, Schmidt DF, Webb GI.
+\newblock Minirocket: A very fast (almost) deterministic transform for time series classification.
+\newblock In Proceedings of the 27th ACM SIGKDD Conference on Knowledge Discovery and Data Mining, KDD ’21. ACM, August 2021;\hspace{0pt} 248–257.
+
+\bibitem{autogluon}
+Erickson N, Mueller J, Shirkov A, Zhang H, Larroy P, Li M, et~al.
+\newblock Autogluon-tabular: Robust and accurate automl for structured data.
+\newblock arXiv preprint arXiv200306505 2020;\hspace{0pt}.
+
+\end{thebibliography}

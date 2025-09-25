@@ -1,5 +1,5 @@
-Challenge score: nan
-AUROC: nan
-AUPRC: nan
-Accuracy: 1.000
-F-measure: nan
+Challenge score: 0.001
+AUROC: 0.545
+AUPRC: 0.020
+Accuracy: 0.929
+F-measure: 0.000

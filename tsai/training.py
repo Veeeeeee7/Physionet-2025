@@ -45,12 +45,12 @@ def process_record(record):
     return record_signals.T, record_age, record_sex, record_label
 
 def log(message):
-    with open('/Users/victorli/Documents/GitHub/Physionet-2025/tsai/log_tcn.txt', 'a') as f:
+    with open('/users/vmli3/physionet-2025/tsai/log_tcn.txt', 'a') as f:
         f.write(f"{message} \n")
         print(message)
 
-if os.path.exists('/Users/victorli/Documents/GitHub/Physionet-2025/tsai/log_tcn.txt'):
-    os.remove('/Users/victorli/Documents/GitHub/Physionet-2025/tsai/log_tcn.txt')
+if os.path.exists('/users/vmli3/physionet-2025/tsai/log_tcn.txt'):
+    os.remove('/users/vmli3/physionet-2025/tsai/log_tcn.txt')
 
 pst = pytz.timezone('US/Pacific')
 start_time = datetime.now(pst).strftime('%Y-%m-%d %H:%M:%S %Z')
@@ -60,7 +60,7 @@ log(f"Using device: {device}")
 
 my_setup()
 
-data_folder = '/Users/victorli/Documents/GitHub/Physionet-2025-ECGFM-Submission/training_data'
+data_folder = '/scratch/vmli3/physionet-2025-data/preprocessed'
 records = find_records(data_folder)
 random.shuffle(records)
 train_records, test_records = train_test_split(records, test_size=0.2, random_state=42)
@@ -76,10 +76,10 @@ sex = []
 labels = []
 
 
-batch_size = 4
-inner_batch_size = 2
-num_workers = 1
-num_epochs = 3
+batch_size = 16384
+inner_batch_size = 128
+num_workers = 8
+num_epochs = 30
 lr = 1e-3
 archs = [
     # (LSTM, {}),                # LSTM (Hochreiter, 1997)
@@ -116,7 +116,7 @@ for i, (arch, k) in enumerate(archs):
         log(f"Training {arch.__name__}")
         start = time.time()
         model = create_model(arch, c_in=12, c_out=2, seq_len=4096, **k)
-        # load_model(model=model, device=device, opt=None, file=f'/Users/victorli/Documents/GitHub/Physionet-2025/tsai/{arch.__name__}', with_opt=False)
+        load_model(model=model, device=device, opt=None, file=f'/scratch/vmli3/physionet-2025-data/tsai-models/{arch.__name__}', with_opt=False)
         model.train()
         for epoch in range(num_epochs):
             log(f"Epoch {epoch + 1}/{num_epochs} for {arch.__name__}")
@@ -136,28 +136,12 @@ for i, (arch, k) in enumerate(archs):
 
                 ecg_signals, age, sex, labels = zip(*results)
 
-                # oversampling positive samples
-                ecg_signals = list(ecg_signals)
-                age = list(age)
-                sex = list(sex)
-                labels = list(labels)
-
-                for i in range(len(labels) - 1, -1, -1):
-                    if labels[i] == 1:
-                        for j in range(9):
-                            ecg_signals.append(ecg_signals[i])
-                            age.append(age[i])
-                            sex.append(sex[i])
-                            labels.append(labels[i])
-                            
                 X = np.array(ecg_signals)
                 y = np.array(labels)
-
                 splits = (list(np.arange(0, len(X))), [])
                 train_dsets = TSDatasets(X, y, splits=splits, inplace=True)
                 train_dls  = TSDataLoaders.from_dsets(train_dsets.train, train_dsets.valid, bs=[inner_batch_size, 0], shuffle=True, num_workers=num_workers)
 
-                # label smoothing
                 learn = Learner(train_dls, model, loss_func=FocalLoss(smoothing=0.01)) #FBeta is basically F1
                 learn.fit_one_cycle(1, lr)
                 avg_loss = round(np.sum(np.array(learn.recorder.losses)) / len(learn.recorder.losses), 6)
@@ -180,7 +164,7 @@ for i, (arch, k) in enumerate(archs):
             log('\n')
 
             if epoch == num_epochs - 1:
-                save_model(model=model, opt=None, file=f'/Users/victorli/Documents/GitHub/Physionet-2025/tsai/{arch.__name__}', with_opt=False)
+                save_model(model=model, opt=None, file=f'/scratch/vmli3/physionet-2025-data/tsai-models/{arch.__name__}', with_opt=False)
 
         elapsed = time.time() - start
         log(f"Training time for {arch.__name__}: {elapsed} seconds")
@@ -192,7 +176,7 @@ for i, (arch, k) in enumerate(archs):
         test_preds = np.zeros((num_test_records,))
 
         model = create_model(arch, c_in=12, c_out=2, seq_len=4096, **k)
-        load_model(model=model, device=device, opt=None, file=f'/Users/victorli/Documents/GitHub/Physionet-2025/tsai/{arch.__name__}', with_opt=False)
+        load_model(model=model, device=device, opt=None, file=f'/scratch/vmli3/physionet-2025-data/tsai-models/{arch.__name__}', with_opt=False)
         model.eval()
 
         for i in range(num_test_records):

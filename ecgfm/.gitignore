@@ -1,9 +1,0 @@
-/__pycache__
-/.venv
-/ckpts
-/data
-/examples
-/fairseq_cli
-/fairseq_signals
-/model
-/scripts

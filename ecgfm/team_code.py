@@ -16,6 +16,9 @@ import sys
 
 from helper_code import *
 from features import *
+import os
+from huggingface_hub import hf_hub_download
+
 
 import torch
 from fairseq_signals.models import build_model_from_checkpoint
@@ -66,15 +69,15 @@ def train_model(data_folder, model_folder, verbose):
     # Instantiate Foundation Model
     model_pretrained = build_model_from_checkpoint(
         checkpoint_path='ckpts/mimic_iv_ecg_physionet_pretrained.pt'
-    ).to('cpu')
+    ).to('cuda')
     model_pretrained.eval()
 
 
     # Instantiate Autogluon
     autogluon_challenge_scorer = make_scorer(name='challenge_score', score_func=compute_challenge_score, optimum=1, greater_is_better=True, needs_proba=True, needs_threshold=False)
     autogluon = TabularPredictor(problem_type='binary', sample_weight='sample_weight', label='chagas', eval_metric=autogluon_challenge_scorer, path=os.path.join(model_folder, 'autogluon'), verbosity=2)
-    time_limit = 60
-    memory = 8
+    time_limit = 86400
+    memory = 60
 
     # start_time = time.time()
     for i in range(num_records):
@@ -103,21 +106,12 @@ def train_model(data_folder, model_folder, verbose):
     val_labels = val_df['chagas'].to_numpy()
     val_df = val_df.drop(columns=['chagas'])
 
-    # Oversampling of True samples to bring True rate ~22.1%
-    non_chagas = train_df[train_df['chagas'] == False]
-    chagas = train_df[train_df['chagas'] == True]
-
-    oversampled_chagas = pd.concat([chagas] * 10, ignore_index=True)
-
-    augmented_train_df = pd.concat([non_chagas, oversampled_chagas], ignore_index=True)
-    train_df = augmented_train_df.sample(frac=1.0, random_state=42).reset_index(drop=True)
-
     # start_time = time.time()
     autogluon.fit(
         train_data=train_df, 
         fit_strategy='sequential', 
-        num_cpus=4, 
-        num_gpus=0, 
+        num_cpus=16, 
+        num_gpus=1, 
         memory_limit=memory, 
         save_bag_folds=True, 
         ag_args_fit={'max_memory_usage_ratio': 0.75},
@@ -161,17 +155,18 @@ def train_model(data_folder, model_folder, verbose):
 # Load your trained models. This function is *required*. You should edit this function to add your code, but do *not* change the
 # arguments of this function. If you do not train one of the models, then you can return None for the model.
 def load_model(model_folder, verbose):
-    model = TabularPredictor.load(os.path.join(model_folder, 'autogluon'))
-    return model
+    ag = TabularPredictor.load(os.path.join(model_folder, 'autogluon'))
+    fm = build_model_from_checkpoint(
+        checkpoint_path='ckpts/mimic_iv_ecg_physionet_pretrained.pt'
+    ).to('cuda')
+    return [ag, fm]
 
 # Run your trained model. This function is *required*. You should edit this function to add your code, but do *not* change the
 # arguments of this function.
 def run_model(record, model, verbose):
     # Load the model.
-    autogluon = model
-    foundation_model = build_model_from_checkpoint(
-        checkpoint_path='ckpts/mimic_iv_ecg_physionet_pretrained.pt'
-    ).to('cpu')
+    autogluon = model[0]
+    foundation_model = model[1]
     foundation_model.eval()
 
     # Extract the features.
@@ -263,7 +258,7 @@ def extract_features(record, foundation_model):
         padding = total_padding // 2
         padded_signal = np.pad(signal, ((padding, total_padding - padding), (0, 0)), 'constant', constant_values=(0, 0))
 
-    x = torch.from_numpy(padded_signal.T).float().to('cpu')
+    x = torch.from_numpy(padded_signal.T).float().to('cuda')
     x = x.unsqueeze(0)
     transformed_features = foundation_model(source=x)['features'].mean(dim=1).to('cpu')
     ecg_features = transformed_features.detach().numpy().flatten()

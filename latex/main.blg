@@ -1,0 +1,48 @@
+This is BibTeX, Version 0.99d (TeX Live 2025)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+The style file: cinc.bst
+Database file #1: references.bib
+Warning--empty pages in Kataria2025PPGFMCA
+You've used 13 entries,
+            2142 wiz_defined-function locations,
+            614 strings with 7754 characters,
+and the built_in function-call counts, 4390 in all, are:
+= -- 410
+> -- 280
+< -- 0
++ -- 140
+- -- 70
+* -- 293
+:= -- 694
+add.period$ -- 41
+call.type$ -- 13
+change.case$ -- 17
+chr.to.int$ -- 0
+cite$ -- 14
+duplicate$ -- 165
+empty$ -- 368
+format.name$ -- 81
+if$ -- 1007
+int.to.chr$ -- 0
+int.to.str$ -- 13
+missing$ -- 13
+newline$ -- 71
+num.names$ -- 13
+pop$ -- 64
+preamble$ -- 1
+purify$ -- 11
+quote$ -- 0
+skip$ -- 173
+stack$ -- 0
+substring$ -- 228
+swap$ -- 18
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 0
+warning$ -- 1
+while$ -- 27
+width$ -- 15
+write$ -- 149
+(There was 1 warning)
